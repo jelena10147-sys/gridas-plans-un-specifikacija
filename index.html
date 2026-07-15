@@ -262,9 +262,43 @@
     .leaf{transition:transform .01s;}
     .hint-hand{animation:none;}
   }
+
+  /* Loading screen: prevents a large empty dark block while embedded images decode */
+  #pageLoader{
+    position:fixed;
+    inset:0;
+    z-index:1000;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:14px;
+    background:#f5f6f7;
+    color:#2b333c;
+    font-size:16px;
+    font-weight:600;
+    transition:opacity .2s ease, visibility .2s ease;
+  }
+  .loader-spinner{
+    width:34px;
+    height:34px;
+    border:4px solid #d7dce1;
+    border-top-color:#3a4550;
+    border-radius:50%;
+    animation:loaderSpin .8s linear infinite;
+  }
+  @keyframes loaderSpin{to{transform:rotate(360deg)}}
+  body.is-loading .stage{visibility:hidden;}
+  body.is-ready #pageLoader{opacity:0;visibility:hidden;pointer-events:none;}
+  body.is-ready .stage{visibility:visible;}
+
 </style>
 </head>
-<body>
+<body class="is-loading">
+  <div id="pageLoader" aria-live="polite">
+    <div class="loader-spinner"></div>
+    <div class="loader-text">Materiāls tiek ielādēts...</div>
+  </div>
   <div class="stage">
     <div class="caption">
       <div class="ttl">Grīdas plāns un specifikācija</div>
@@ -486,6 +520,44 @@
     book.appendChild(spiral);
   }
   buildBinding();
+
+  // Reveal the activity only after both embedded drawing images are decoded.
+  (() => {
+    const loader = document.getElementById('pageLoader');
+    const images = [planImg, specImg];
+
+    const waitForImage = (img) => {
+      if (img.complete && img.naturalWidth > 0) {
+        return typeof img.decode === 'function'
+          ? img.decode().catch(() => {})
+          : Promise.resolve();
+      }
+
+      return new Promise((resolve) => {
+        const done = () => resolve();
+        img.addEventListener('load', done, { once: true });
+        img.addEventListener('error', done, { once: true });
+      }).then(() => {
+        return typeof img.decode === 'function'
+          ? img.decode().catch(() => {})
+          : undefined;
+      });
+    };
+
+    Promise.all(images.map(waitForImage)).then(() => {
+      document.body.classList.remove('is-loading');
+      document.body.classList.add('is-ready');
+      window.dispatchEvent(new Event('resize'));
+      setTimeout(() => loader?.remove(), 250);
+    });
+
+    // Safety fallback in case a browser does not fire image events correctly.
+    setTimeout(() => {
+      document.body.classList.remove('is-loading');
+      document.body.classList.add('is-ready');
+    }, 8000);
+  })();
+
 </script>
 </body>
 </html>
