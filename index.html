@@ -20,31 +20,34 @@
   }
 
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-  html,body{height:100%;margin:0;}
+  html,body{margin:0;}
   body{
     font-family:"Segoe UI",-apple-system,BlinkMacSystemFont,Roboto,Helvetica,Arial,sans-serif;
+    background:#ffffff;            /* extra iframe height stays white, no dark block */
+    color:#eef1f4;
+    position:relative;
+    display:block;
+    padding:0;
+  }
+
+  /* The dark "drafting desk" is now a compact card around the content only */
+  .stage{
+    width:min(1180px,100%);
+    margin:0 auto;
+    position:relative;
+    display:flex;flex-direction:column;align-items:center;gap:clamp(10px,2vh,20px);
+    padding:clamp(14px,3vw,32px);
+    border-radius:14px;
     background:
       radial-gradient(120% 120% at 50% 0%, var(--desk-1) 0%, var(--desk-2) 70%, #232a31 100%);
-    color:#eef1f4;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    justify-content:center;
-    min-height:100dvh;
-    padding:clamp(10px,3vw,32px);
     overflow:hidden;
   }
 
-  /* subtle paper-desk texture */
-  body::before{
-    content:"";position:fixed;inset:0;pointer-events:none;
+  /* subtle paper-desk texture, scoped to the card */
+  .stage::before{
+    content:"";position:absolute;inset:0;pointer-events:none;
     background-image:radial-gradient(rgba(255,255,255,.03) 1px,transparent 1px);
     background-size:22px 22px;opacity:.6;
-  }
-
-  .stage{
-    width:min(1180px,100%);
-    display:flex;flex-direction:column;align-items:center;gap:clamp(10px,2vh,20px);
   }
 
   .caption{
@@ -250,7 +253,7 @@
   }
   .zoom-close{position:fixed;top:14px;right:14px;z-index:52;}
   .zoom-hint{
-    position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:52;
+    position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:52;
     font-size:12.5px;color:#c9cdd3;background:rgba(20,26,32,.7);padding:6px 12px;border-radius:8px;
   }
 
@@ -263,17 +266,18 @@
     .hint-hand{animation:none;}
   }
 
-  /* Loading screen: prevents a large empty dark block while embedded images decode */
+  /* Loading screen: overlays only the content area at the top of the page */
   #pageLoader{
-    position:fixed;
-    inset:0;
+    position:absolute;
+    top:0;left:0;right:0;
+    min-height:340px;
     z-index:1000;
     display:flex;
     flex-direction:column;
     align-items:center;
     justify-content:center;
     gap:14px;
-    background:#f5f6f7;
+    background:#ffffff;
     color:#2b333c;
     font-size:16px;
     font-weight:600;
@@ -429,14 +433,21 @@
 
   let scale=1, tx=0, ty=0, baseScale=1;
 
+  // In H5P the iframe can be much taller than the visible screen —
+  // cap the "viewport" height so the zoomed sheet stays near the top.
+  function viewH(){
+    return Math.min(window.innerHeight, Math.round(window.innerWidth*0.8), 900);
+  }
+
   function openZoom(){
     zoomImg.src = flipped ? SPEC_SRC : PLAN_SRC;
     zoom.classList.add('open');
+    window.scrollTo(0,0);
     zoomImg.onload = ()=>fitZoom();
     if(zoomImg.complete) fitZoom();
   }
   function fitZoom(){
-    const vw = window.innerWidth, vh = window.innerHeight;
+    const vw = window.innerWidth, vh = viewH();
     const iw = zoomImg.naturalWidth, ih = zoomImg.naturalHeight;
     baseScale = Math.min(vw*0.94/iw, vh*0.86/ih);
     scale = baseScale;
@@ -458,8 +469,8 @@
   zoomBtn.addEventListener('click', openZoom);
   zClose.addEventListener('click', ()=>zoom.classList.remove('open'));
   zoom.addEventListener('click', e=>{ if(e.target===zoom) zoom.classList.remove('open'); });
-  zIn.addEventListener('click', ()=>zoomAt(innerWidth/2, innerHeight/2, 1.3));
-  zOut.addEventListener('click', ()=>zoomAt(innerWidth/2, innerHeight/2, 1/1.3));
+  zIn.addEventListener('click', ()=>zoomAt(innerWidth/2, viewH()/2, 1.3));
+  zOut.addEventListener('click', ()=>zoomAt(innerWidth/2, viewH()/2, 1/1.3));
 
   zoom.addEventListener('wheel', e=>{
     e.preventDefault();
@@ -505,8 +516,8 @@
   document.addEventListener('keydown', e=>{
     if(!zoom.classList.contains('open')) return;
     if(e.key==='Escape') zoom.classList.remove('open');
-    if(e.key==='+'||e.key==='=') zoomAt(innerWidth/2,innerHeight/2,1.2);
-    if(e.key==='-') zoomAt(innerWidth/2,innerHeight/2,1/1.2);
+    if(e.key==='+'||e.key==='=') zoomAt(innerWidth/2,viewH()/2,1.2);
+    if(e.key==='-') zoomAt(innerWidth/2,viewH()/2,1/1.2);
   });
   window.addEventListener('resize', ()=>{ if(zoom.classList.contains('open')) fitZoom(); });
 
